@@ -49,4 +49,3 @@
 #align(center + horizon)[
   This layout is 79.5#sym.space.narrow\mm by #page_height.mm()#sym.space.narrow\mm.
 ]
-
