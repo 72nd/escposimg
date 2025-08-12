@@ -9,7 +9,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/irvin/escposimg"
+	"github.com/72nd/escposimg"
 )
 
 func main() {

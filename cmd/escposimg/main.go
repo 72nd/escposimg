@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/irvin/escposimg"
+	"github.com/72nd/escposimg"
 )
 
 func main() {
