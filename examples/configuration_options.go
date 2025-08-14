@@ -78,16 +78,19 @@ func main() {
 	}
 
 	// Example 3: Custom configuration for older printers
-	fmt.Println("\n3. Older Thermal Printer (80mm paper, 180 DPI):")
+	fmt.Println("\n3. Older Thermal Printer (80mm paper, 180 DPI, Bit Image Mode):")
 	configOlder := &escposimg.Config{
 		PaperWidthMM:   80,
 		DPI:            escposimg.DPI180,             // Lower DPI for older printers
 		DitheringAlgo:  escposimg.DitheringThreshold, // Simpler algorithm for speed
+		PrintMode:      escposimg.PrintModeBitImage,  // Better compatibility with legacy printers
 		DebugOutput:    true,
 		DebugImagePath: "config_older_printer.png",
-		DebugText:      "Older printer: 180 DPI, Threshold dithering",
+		DebugText:      "Older printer: 180 DPI, Threshold dithering, Bit Image Mode",
 		CutPaper:       false, // Some older printers don't support auto-cut
 	}
+
+	fmt.Printf("   Print mode: %s (better legacy compatibility)\n", configOlder.PrintMode.String())
 
 	pixelWidthOlder := configOlder.CalculatePixelWidth()
 	fmt.Printf("   Paper width: %dmm → %d pixels (older printer)\n", configOlder.PaperWidthMM, pixelWidthOlder)
@@ -149,4 +152,5 @@ func main() {
 	fmt.Println("• Use 300 DPI for high-quality photo printing")
 	fmt.Println("• Use 180 DPI for older or slower printers")
 	fmt.Println("• Choose dithering algorithm based on image content and speed requirements")
+	fmt.Println("• Use Raster mode for modern printers, Bit Image mode for legacy compatibility")
 }

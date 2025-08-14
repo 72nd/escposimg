@@ -23,9 +23,14 @@ func main() {
 	// - 80mm paper width
 	// - 203 DPI
 	// - Floyd-Steinberg dithering
+	// - Raster print mode (GS v 0)
 	// - No debug output
 	// - No paper cut
 	config := escposimg.DefaultConfig()
+
+	// You can also customize the print mode:
+	// config.PrintMode = escposimg.PrintModeBitImage  // For legacy printers
+	slog.Info("Using print mode", "mode", config.PrintMode.String())
 
 	// Create stdout output to see the ESC/POS commands
 	output := escposimg.NewStdoutOutput()

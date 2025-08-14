@@ -17,6 +17,7 @@ func main() {
 		paperWidth     = flag.Int("paper-width", 80, "Paper width in millimeters")
 		dpi            = flag.Int("dpi", 203, "Printer DPI")
 		ditheringAlgo  = flag.String("dithering", "floyd-steinberg", "Dithering algorithm (floyd-steinberg, atkinson, threshold, bayer, burkes, sierra-lite, jarvis-judice-ninke, shadura)")
+		printMode      = flag.String("print-mode", "raster", "ESC/POS print mode (raster, bit-image)")
 		debugOutput    = flag.Bool("debug-output", false, "Save dithered image for debugging")
 		debugImagePath = flag.String("debug-image", "debug_output.png", "Path to save debug image")
 		debugText      = flag.String("debug-text", "", "Optional debug text to print before image")
@@ -37,6 +38,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -output network -network-addr 192.168.1.100:9100\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -dithering threshold -debug-output\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -print-mode bit-image\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -print-mode raster -dithering atkinson\n", os.Args[0])
 	}
 
 	flag.Parse()
@@ -69,11 +72,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Parse print mode
+	printModeType, err := parsePrintMode(*printMode)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Create configuration
 	config := &escposimg.Config{
 		PaperWidthMM:   *paperWidth,
 		DPI:            *dpi,
 		DitheringAlgo:  ditheringType,
+		PrintMode:      printModeType,
 		DebugOutput:    *debugOutput,
 		DebugImagePath: *debugImagePath,
 		DebugText:      *debugText,
@@ -117,6 +128,18 @@ func parseDitheringAlgo(algo string) (escposimg.DitheringType, error) {
 		return escposimg.DitheringShadura, nil
 	default:
 		return 0, fmt.Errorf("unknown dithering algorithm: %s", algo)
+	}
+}
+
+// parsePrintMode converts string to PrintMode
+func parsePrintMode(mode string) (escposimg.PrintMode, error) {
+	switch strings.ToLower(mode) {
+	case "raster":
+		return escposimg.PrintModeRaster, nil
+	case "bit-image":
+		return escposimg.PrintModeBitImage, nil
+	default:
+		return 0, fmt.Errorf("unknown print mode: %s (supported: raster, bit-image)", mode)
 	}
 }
 

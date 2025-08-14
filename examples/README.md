@@ -118,6 +118,27 @@ go run debug_features.go
 - Verbose logging with `slog.LevelDebug`
 - Visual comparison of settings
 
+### 6. `print_mode_comparison.go` - ESC/POS Print Modes
+
+**Purpose**: Demonstrates the two different ESC/POS print modes and when to use each.
+
+**What it demonstrates**:
+- Raster Mode (GS v 0) - Modern standard
+- Bit Image Mode (ESC *) - Legacy compatible
+- Performance and compatibility differences
+- Decision guide for choosing the right mode
+
+**Run it**:
+```bash
+go run print_mode_comparison.go
+```
+
+**Print modes**:
+- `PrintModeRaster` - Single command, efficient, modern printers
+- `PrintModeBitImage` - Line-by-line, compatible with older printers
+- Same visual output with different command structures
+- Compatibility recommendations for different printer types
+
 ## Running the Examples
 
 ### Basic Usage
@@ -169,6 +190,12 @@ Use `debug_features.go` to save debug images and troubleshoot problems.
 ### Batch Processing
 Use `output_methods.go` with file output to process many images.
 
+### Legacy Printer Support
+Use `print_mode_comparison.go` to test which mode works best with your printer.
+
+### Printer Compatibility Issues
+Start with `print_mode_comparison.go` - try Bit Image Mode if Raster Mode doesn't work.
+
 ## Tips
 
 1. **Start with `basic_usage.go`** to verify everything works
@@ -191,3 +218,6 @@ Test with file output first, then check network connectivity.
 
 ### Need to see processing details?
 Use verbose logging in `debug_features.go`.
+
+### Printer not printing or printing garbage?
+Try different print modes with `print_mode_comparison.go` - some printers only support one mode.
