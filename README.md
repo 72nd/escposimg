@@ -38,9 +38,9 @@ This example processes artwork at high resolution with Atkinson dithering, which
 
 **Legacy printer compatibility:**
 ```bash
-escposimg -image receipt.jpg -print-mode bit-image -dpi 180 -paper-width 58
+escposimg -image receipt.jpg -print-mode column -dpi 180 -paper-width 58
 ```
-This command configures the tool for older thermal printers using bit-image mode, lower resolution, and narrow 58mm paper format.
+This command configures the tool for older thermal printers using column mode, lower resolution, and narrow 58mm paper format.
 
 #### Output Methods
 
@@ -199,7 +199,7 @@ This production-ready function demonstrates error handling, configuration manage
 | `-paper-width` | int | `80` | Paper width in millimetres (58, 80, etc.) |
 | `-dpi` | int | `203` | Printer resolution in dots per inch |
 | `-dithering` | string | `floyd-steinberg` | Dithering algorithm (see table below) |
-| `-print-mode` | string | `raster` | ESC/POS printing mode (`raster`, `bit-image`) |
+| `-print-mode` | string | `raster` | ESC/POS printing mode (`raster`, `graphics`, `column`) |
 | `-debug-output` | bool | `false` | Save processed image for debugging |
 | `-debug-image` | string | `debug_output.png` | Path for debug image output |
 | `-debug-text` | string | `` | Optional text printed before image |
@@ -241,7 +241,8 @@ This production-ready function demonstrates error handling, configuration manage
 | Mode | CLI Value | Description | Compatibility |
 |------|-----------|-------------|---------------|
 | Raster | `raster` | Modern GS v 0 command, efficient single-command printing | Modern thermal printers (post-2010) |
-| Bit Image | `bit-image` | Legacy ESC * command, line-by-line processing | All ESC/POS printers, including vintage models |
+| Graphics | `graphics` | Advanced GS ( L command, extended features | Modern ESC/POS printers with graphics support |
+| Column | `column` | Legacy ESC * command, line-by-line processing | All ESC/POS printers, including vintage models |
 
 ### Common DPI Values
 

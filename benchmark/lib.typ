@@ -1,10 +1,10 @@
 #let tpl(
   height: auto,
   font_size: 8pt,
-  right_margin: 7.5mm,
+  right_margin: 0.0mm,
   body,
 ) = {
-  set page(width: 79.5mm, height: height, margin: (
+  set page(width: 72.0mm, height: height, margin: (
     top: 0mm,
     left: 0mm,
     right: right_margin,

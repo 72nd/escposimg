@@ -14,10 +14,10 @@ func main() {
 	// Define command line flags
 	var (
 		imagePath      = flag.String("image", "", "Path to the image file (required)")
-		paperWidth     = flag.Int("paper-width", 80, "Paper width in millimeters")
+		paperWidth     = flag.Int("paper-width", 72, "Paper width in millimeters")
 		dpi            = flag.Int("dpi", 203, "Printer DPI")
 		ditheringAlgo  = flag.String("dithering", "floyd-steinberg", "Dithering algorithm (floyd-steinberg, atkinson, threshold, bayer, burkes, sierra-lite, jarvis-judice-ninke, shadura)")
-		printMode      = flag.String("print-mode", "raster", "ESC/POS print mode (raster, bit-image)")
+		printMode      = flag.String("print-mode", "raster", "ESC/POS print mode (raster, graphics, column)")
 		debugOutput    = flag.Bool("debug-output", false, "Save dithered image for debugging")
 		debugImagePath = flag.String("debug-image", "debug_output.png", "Path to save debug image")
 		debugText      = flag.String("debug-text", "", "Optional debug text to print before image")
@@ -38,8 +38,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -output network -network-addr 192.168.1.100:9100\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -dithering threshold -debug-output\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -print-mode bit-image\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -print-mode raster -dithering atkinson\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -print-mode column\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -print-mode graphics -dithering atkinson\n", os.Args[0])
 	}
 
 	flag.Parse()
@@ -136,10 +136,12 @@ func parsePrintMode(mode string) (escposimg.PrintMode, error) {
 	switch strings.ToLower(mode) {
 	case "raster":
 		return escposimg.PrintModeRaster, nil
-	case "bit-image":
-		return escposimg.PrintModeBitImage, nil
+	case "graphics":
+		return escposimg.PrintModeGraphics, nil
+	case "column":
+		return escposimg.PrintModeColumn, nil
 	default:
-		return 0, fmt.Errorf("unknown print mode: %s (supported: raster, bit-image)", mode)
+		return 0, fmt.Errorf("unknown print mode: %s (supported: raster, graphics, column)", mode)
 	}
 }
 
