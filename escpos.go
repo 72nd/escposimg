@@ -103,12 +103,9 @@ func writeRasterImageCommand(buf *bytes.Buffer, width, height int, rasterData []
 
 // convertToBitImageFormat converts a monochrome image to bit image format for ESC *.
 //
-// The ESC * command processes images in horizontal bands of 8 pixels height.
-// Each column in a band is represented by a single byte, where each bit
-// corresponds to a vertical pixel (bit 0 = top, bit 7 = bottom).
-//
-// This format is compatible with legacy thermal printers and provides
-// line-by-line processing for better compatibility with older hardware.
+// Uses ESC * mode 33 (24-dot double-density), which is the standard for 203 DPI
+// thermal printers. Each band is 24 pixels tall; each column is represented by
+// 3 bytes. Within each byte, bit 7 (MSB) is the topmost dot.
 //
 // Parameters:
 //   - img: Source image (should be monochrome/dithered)
@@ -121,34 +118,30 @@ func convertToBitImageFormat(img image.Image) ([]byte, error) {
 	width := bounds.Dx()
 	height := bounds.Dy()
 
-	// ESC * mode 0: 8-dot single-density
-	// Each band is 8 pixels high, each column takes 1 byte
-	bands := (height + 7) / 8
-	bytesPerBand := width
+	// ESC * mode 33: 24-dot double-density
+	// Each band is 24 pixels high, each column takes 3 bytes (one per 8-dot sub-row).
+	bands := (height + 23) / 24
+	bytesPerBand := width * 3
 	bitImageData := make([]byte, bands*bytesPerBand)
 
 	for band := 0; band < bands; band++ {
 		for x := 0; x < width; x++ {
-			var columnByte byte
-
-			// Process 8 pixels vertically for this column
-			for bit := 0; bit < 8; bit++ {
-				y := band*8 + bit
-				if y < height {
-					// Get pixel color
-					pixel := img.At(x+bounds.Min.X, y+bounds.Min.Y)
-					grayColor := color.GrayModel.Convert(pixel).(color.Gray)
-
-					// Black pixels (Y=0) should print
-					if grayColor.Y < 128 {
-						// Set bit (bit 0 = top pixel, bit 7 = bottom pixel)
-						columnByte |= 1 << uint(bit)
-					}
+			// Process 24 pixels vertically for this column (3 bytes)
+			for dot := 0; dot < 24; dot++ {
+				y := band*24 + dot
+				if y >= height {
+					break
+				}
+				pixel := img.At(x+bounds.Min.X, y+bounds.Min.Y)
+				grayColor := color.GrayModel.Convert(pixel).(color.Gray)
+				if grayColor.Y < 128 {
+					// Byte 0 covers dots 0-7, byte 1 covers 8-15, byte 2 covers 16-23.
+					// Within each byte, bit 7 (MSB) = topmost dot per ESC/POS spec.
+					byteOffset := dot / 8
+					bitIndex := uint(7 - (dot % 8))
+					bitImageData[band*bytesPerBand+x*3+byteOffset] |= 1 << bitIndex
 				}
 			}
-
-			// Store the column byte
-			bitImageData[band*bytesPerBand+x] = columnByte
 		}
 	}
 
@@ -177,8 +170,9 @@ func convertToBitImageFormat(img image.Image) ([]byte, error) {
 // Returns:
 //   - error: If command generation fails
 func writeBitImageCommand(buf *bytes.Buffer, width, height int, bitImageData []byte) error {
-	bands := (height + 7) / 8
-	bytesPerBand := width
+	// Mode 33: 24-dot double-density. Each band is 24 rows; each column = 3 bytes.
+	bands := (height + 23) / 24
+	bytesPerBand := width * 3
 
 	slog.Debug("Writing bit image command",
 		"width", width,
@@ -186,28 +180,38 @@ func writeBitImageCommand(buf *bytes.Buffer, width, height int, bitImageData []b
 		"bands", bands,
 		"bytes_per_band", bytesPerBand)
 
+	// Set line spacing to 24 dots so each LF advances exactly one band height.
+	// Default line spacing (~30 dots) would cause excess paper between bands.
+	buf.WriteByte(ESC)
+	buf.WriteByte('3')
+	buf.WriteByte(24)
+
 	for band := 0; band < bands; band++ {
 		// ESC * m nL nH [data]
-		buf.WriteByte(ESC) // ESC
-		buf.WriteByte('*') // *
-		buf.WriteByte(0)   // m (mode 0: 8-dot single-density)
+		buf.WriteByte(ESC)  // ESC
+		buf.WriteByte('*')  // *
+		buf.WriteByte(0x21) // m=33: 24-dot double-density
 
 		// Width in dots (nL + nH * 256)
 		buf.WriteByte(byte(width & 0xFF))        // nL
 		buf.WriteByte(byte((width >> 8) & 0xFF)) // nH
 
-		// Write band data
+		// Write band data (3 bytes per column)
 		bandStart := band * bytesPerBand
 		bandEnd := bandStart + bytesPerBand
 		buf.Write(bitImageData[bandStart:bandEnd])
 
-		// Line feed after each band
+		// Line feed advances paper by the 24-dot line spacing set above
 		buf.WriteByte(LF)
 
 		slog.Debug("Wrote bit image band",
 			"band", band,
 			"data_size", bytesPerBand)
 	}
+
+	// Restore default line spacing
+	buf.WriteByte(ESC)
+	buf.WriteByte('2')
 
 	return nil
 }
