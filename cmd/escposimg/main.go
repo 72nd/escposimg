@@ -13,10 +13,10 @@ import (
 func main() {
 	// Define command line flags
 	var (
-		imagePath      = flag.String("image", "", "Path to the image file (required)")
+		imagePath      = flag.String("image", "", "Path to the image file: PNG, JPEG, or Netpbm (.pbm, .pgm, .ppm, .pam) (required)")
 		paperWidth     = flag.Int("paper-width", 72, "Paper width in millimeters")
 		dpi            = flag.Int("dpi", 203, "Printer DPI")
-		ditheringAlgo  = flag.String("dithering", "floyd-steinberg", "Dithering algorithm (floyd-steinberg, atkinson, threshold, bayer, burkes, sierra-lite, jarvis-judice-ninke, shadura)")
+		ditheringAlgo  = flag.String("dithering", "floyd-steinberg", "Dithering algorithm (floyd-steinberg, atkinson, threshold, none, bayer, burkes, sierra-lite, jarvis-judice-ninke, shadura)")
 		printMode      = flag.String("print-mode", "raster", "ESC/POS print mode (raster, graphics, column)")
 		debugOutput    = flag.Bool("debug-output", false, "Save dithered image for debugging")
 		debugImagePath = flag.String("debug-image", "debug_output.png", "Path to save debug image")
@@ -40,6 +40,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -dithering threshold -debug-output\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -print-mode column\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -print-mode graphics -dithering atkinson\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s -image bitmap.pbm\n", os.Args[0])
 	}
 
 	flag.Parse()
@@ -116,6 +117,8 @@ func parseDitheringAlgo(algo string) (escposimg.DitheringType, error) {
 		return escposimg.DitheringAtkinson, nil
 	case "threshold":
 		return escposimg.DitheringThreshold, nil
+	case "none":
+		return escposimg.DitheringNone, nil
 	case "bayer":
 		return escposimg.DitheringBayer, nil
 	case "burkes":

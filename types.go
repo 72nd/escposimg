@@ -12,6 +12,9 @@ const (
 	DitheringSierraLite
 	DitheringJarvisJudiceNinke
 	DitheringShadura
+	// DitheringNone converts each pixel to black or white with a fixed threshold only
+	// (no error diffusion, no ordered dither matrix). Same implementation as DitheringThreshold.
+	DitheringNone
 )
 
 // PrintMode defines the ESC/POS printing mode for images.
@@ -114,6 +117,8 @@ func (d DitheringType) String() string {
 		return "jarvis-judice-ninke"
 	case DitheringShadura:
 		return "shadura"
+	case DitheringNone:
+		return "none"
 	default:
 		return "unknown"
 	}

@@ -15,7 +15,7 @@ func ApplyDithering(img image.Image, algo DitheringType) (image.Image, error) {
 		return applyFloydSteinberg(img)
 	case DitheringAtkinson:
 		return applyAtkinson(img)
-	case DitheringThreshold:
+	case DitheringThreshold, DitheringNone:
 		return applyThreshold(img)
 	case DitheringBayer:
 		return applyBayer(img)
@@ -193,7 +193,8 @@ func applyAtkinson(img image.Image) (image.Image, error) {
 	return createMonochromeImage(result, width, height), nil
 }
 
-// applyThreshold implements simple threshold dithering
+// applyThreshold maps each pixel to black or white using luminance and a fixed midpoint (128).
+// No error is propagated and no spatial dither pattern is applied.
 func applyThreshold(img image.Image) (image.Image, error) {
 	bounds := img.Bounds()
 	width := bounds.Dx()

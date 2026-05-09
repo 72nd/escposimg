@@ -10,6 +10,12 @@ import (
 // ScaleImage scales an image to the specified width while maintaining aspect ratio.
 // Uses Lanczos3 interpolation for high quality scaling.
 func ScaleImage(img image.Image, targetWidth int) (image.Image, error) {
+	return ScaleImageInterp(img, targetWidth, resize.Lanczos3)
+}
+
+// ScaleImageInterp scales an image to the target width while maintaining aspect ratio,
+// using the given nfnt/resize interpolation (e.g. Lanczos3 or NearestNeighbor).
+func ScaleImageInterp(img image.Image, targetWidth int, interp resize.InterpolationFunction) (image.Image, error) {
 	bounds := img.Bounds()
 	originalWidth := bounds.Dx()
 	originalHeight := bounds.Dy()
@@ -25,9 +31,7 @@ func ScaleImage(img image.Image, targetWidth int) (image.Image, error) {
 		"original_height", originalHeight,
 		"target_width", targetWidth)
 
-	// Use Lanczos3 for high-quality scaling
-	// Height is set to 0 to preserve aspect ratio automatically
-	scaledImg := resize.Resize(uint(targetWidth), 0, img, resize.Lanczos3)
+	scaledImg := resize.Resize(uint(targetWidth), 0, img, interp)
 
 	newBounds := scaledImg.Bounds()
 	slog.Debug("Image scaled successfully",
