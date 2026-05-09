@@ -356,113 +356,74 @@ func generateColumnMode(img image.Image, config *Config) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// convertToGraphicsFormat converts a monochrome image to graphics format for GS ( L.
+// writeGraphicsCommand writes the GS 8 L store command followed by a GS ( L print command.
 //
-// The GS ( L command (fn=83) uses raster format similar to GS v 0, but with
-// different command structure and parameter layout. The data format is identical
-// to raster mode - bits are packed horizontally with MSB representing the leftmost pixel.
+// GS 8 L uses a 32-bit length field (p1..p4), which avoids the 16-bit overflow that
+// would occur with GS ( L for images larger than ~900 rows at full paper width.
 //
-// Parameters:
-//   - img: Source image (should be monochrome/dithered)
+// Store command: GS 8 L p1 p2 p3 p4  m  fn  a bx by  c xL xH yL yH [data]
+//                          (32-bit)  30  70 30  1  1 31
+//   - fn=0x70 (112): store graphics data in the print buffer (raster format)
+//   - a=0x30 (48): tone (mono)
+//   - bx=by=0x01: 1x scale
+//   - c=0x31 (49): black
 //
-// Returns:
-//   - []byte: Formatted data ready for GS ( L commands
-//   - error: If image processing fails
-func convertToGraphicsFormat(img image.Image) ([]byte, error) {
-	// Graphics mode uses identical data format to raster mode
-	return convertToRasterFormat(img)
-}
+// Print command: GS ( L 02 00 30 32
+//   - fn=0x32 (50): print graphics data from the print buffer
+func writeGraphicsCommand(buf *bytes.Buffer, width, height int, rasterData []byte) error {
+	// Fixed header: m(1) fn(1) a(1) bx(1) by(1) c(1) xL(1) xH(1) yL(1) yH(1) = 10 bytes
+	paramLength := uint32(10 + len(rasterData))
 
-// writeGraphicsCommand writes the GS ( L command for graphics printing.
-//
-// This implements the GS ( L command with function code 83 (0x53) for defining
-// download graphics in raster format. The command structure is:
-// GS ( L pL pH m fn kc1 kc2 xL xH yL yH [data]
-//
-// Where:
-//   - GS ( L = Command header (0x1D 0x28 0x4C)
-//   - pL pH = Total length of following data (little-endian 16-bit)
-//   - m = Mode (0x30/48 for this function)
-//   - fn = Function code (0x53/83 for defining download graphics)
-//   - kc1 kc2 = Key codes (0x30 0x30 for default graphics area)
-//   - xL xH = Width in dots (little-endian 16-bit)
-//   - yL yH = Height in dots (little-endian 16-bit)
-//   - [data] = Raster graphics data
-//
-// Parameters:
-//   - buf: Buffer to write commands to
-//   - width: Image width in pixels
-//   - height: Image height in pixels
-//   - graphicsData: Pre-formatted graphics data from convertToGraphicsFormat
-//
-// Returns:
-//   - error: If command generation fails
-func writeGraphicsCommand(buf *bytes.Buffer, width, height int, graphicsData []byte) error {
-	// Calculate bytes per line for graphics format
-	bytesPerLine := (width + 7) / 8
-
-	// Calculate total parameter length (excluding GS ( L pL pH)
-	// m(1) + fn(1) + kc1(1) + kc2(1) + xL(1) + xH(1) + yL(1) + yH(1) + data
-	paramLength := 8 + len(graphicsData)
-
-	slog.Debug("Writing graphics command",
+	slog.Debug("Writing graphics command (GS 8 L)",
 		"width", width,
 		"height", height,
-		"bytes_per_line", bytesPerLine,
-		"data_size", len(graphicsData),
+		"data_size", len(rasterData),
 		"param_length", paramLength)
 
-	// GS ( L command header
-	buf.WriteByte(GS)  // GS (0x1D)
-	buf.WriteByte('(') // ( (0x28)
-	buf.WriteByte('L') // L (0x4C)
+	// GS 8 L — store graphics data in the print buffer (32-bit length)
+	buf.WriteByte(GS)
+	buf.WriteByte('8')
+	buf.WriteByte('L')
+	buf.WriteByte(byte(paramLength & 0xFF))         // p1
+	buf.WriteByte(byte((paramLength >> 8) & 0xFF))  // p2
+	buf.WriteByte(byte((paramLength >> 16) & 0xFF)) // p3
+	buf.WriteByte(byte((paramLength >> 24) & 0xFF)) // p4
+	buf.WriteByte(0x30)                             // m=48
+	buf.WriteByte(0x70)                             // fn=112: store in print buffer (raster)
+	buf.WriteByte(0x30)                             // a=48: tone (mono)
+	buf.WriteByte(0x01)                             // bx=1: horizontal scale 1x
+	buf.WriteByte(0x01)                             // by=1: vertical scale 1x
+	buf.WriteByte(0x31)                             // c=49: black
+	buf.WriteByte(byte(width & 0xFF))               // xL
+	buf.WriteByte(byte((width >> 8) & 0xFF))        // xH
+	buf.WriteByte(byte(height & 0xFF))              // yL
+	buf.WriteByte(byte((height >> 8) & 0xFF))       // yH
+	buf.Write(rasterData)
 
-	// Parameter length (pL pH) - little-endian 16-bit
-	buf.WriteByte(byte(paramLength & 0xFF))        // pL
-	buf.WriteByte(byte((paramLength >> 8) & 0xFF)) // pH
-
-	// Mode (m) - always 0x30 for this function
-	buf.WriteByte(0x30) // m
-
-	// Function code (fn) - 0x53 for defining download graphics
-	buf.WriteByte(0x53) // fn
-
-	// Key codes (kc1 kc2) - 0x30 0x30 for default graphics area
-	buf.WriteByte(0x30) // kc1
-	buf.WriteByte(0x30) // kc2
-
-	// Width in dots (xL xH) - little-endian 16-bit
-	buf.WriteByte(byte(width & 0xFF))        // xL
-	buf.WriteByte(byte((width >> 8) & 0xFF)) // xH
-
-	// Height in dots (yL yH) - little-endian 16-bit
-	buf.WriteByte(byte(height & 0xFF))        // yL
-	buf.WriteByte(byte((height >> 8) & 0xFF)) // yH
-
-	// Write graphics data
-	buf.Write(graphicsData)
-
-	slog.Debug("Wrote graphics command",
-		"width", width,
-		"height", height,
-		"data_size", len(graphicsData))
+	// GS ( L — print graphics data from the print buffer
+	buf.WriteByte(GS)
+	buf.WriteByte('(')
+	buf.WriteByte('L')
+	buf.WriteByte(0x02) // pL: 2 parameter bytes (m + fn)
+	buf.WriteByte(0x00) // pH
+	buf.WriteByte(0x30) // m=48
+	buf.WriteByte(0x32) // fn=50: print graphics from print buffer
 
 	return nil
 }
 
-// generateGraphicsMode generates ESC/POS commands using GS ( L (graphics mode).
+// generateGraphicsMode generates ESC/POS commands using GS 8 L / GS ( L (graphics mode).
 //
-// This function implements the advanced graphics printing approach using
-// GS ( L commands. This mode provides extended functionality for modern
-// thermal printers and may offer better quality or performance on
-// compatible devices.
+// Uses GS 8 L (fn=112) to store the full image in the print buffer in one command —
+// its 32-bit length field handles images of any size without overflow. Then GS ( L
+// (fn=50) triggers printing.
 //
 // Process:
 //  1. Initialize printer (ESC @)
 //  2. Add optional debug text
-//  3. Convert image to graphics format (identical to raster)
-//  4. Send GS ( L command to define graphics in printer memory
-//  5. Send print command to output the graphics
+//  3. Convert image to raster format
+//  4. GS 8 L: store graphics data in the print buffer
+//  5. GS ( L fn=50: print from the print buffer
 //  6. Add paper feeds and optional cut command
 //
 // Parameters:
@@ -484,7 +445,6 @@ func generateGraphicsMode(img image.Image, config *Config) ([]byte, error) {
 	// Step 1: Initialize printer (ESC @)
 	buf.WriteByte(ESC)
 	buf.WriteByte('@')
-	slog.Debug("Added printer initialization command")
 
 	// Step 2: Optional debug text
 	if config.DebugText != "" {
@@ -493,31 +453,16 @@ func generateGraphicsMode(img image.Image, config *Config) ([]byte, error) {
 		slog.Debug("Added debug text", "text", config.DebugText)
 	}
 
-	// Step 3: Convert image to graphics format
-	graphicsData, err := convertToGraphicsFormat(img)
+	// Step 3: Convert image to raster format
+	rasterData, err := convertToRasterFormat(img)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert image to graphics format: %w", err)
+		return nil, fmt.Errorf("failed to convert image to raster format: %w", err)
 	}
 
-	// Step 4: Send GS ( L command to define graphics
-	err = writeGraphicsCommand(&buf, width, height, graphicsData)
-	if err != nil {
+	// Steps 4+5: Store and print graphics
+	if err := writeGraphicsCommand(&buf, width, height, rasterData); err != nil {
 		return nil, fmt.Errorf("failed to write graphics command: %w", err)
 	}
-
-	// Step 5: Print the defined graphics using GS ( L with function code 50 (print)
-	// GS ( L pL pH m fn kc1 kc2
-	buf.WriteByte(GS)   // GS
-	buf.WriteByte('(')  // (
-	buf.WriteByte('L')  // L
-	buf.WriteByte(0x06) // pL (6 bytes of parameters)
-	buf.WriteByte(0x00) // pH
-	buf.WriteByte(0x30) // m (mode)
-	buf.WriteByte(0x32) // fn (50/0x32 = print graphics)
-	buf.WriteByte(0x30) // kc1 (key code 1)
-	buf.WriteByte(0x30) // kc2 (key code 2)
-
-	slog.Debug("Added graphics print command")
 
 	// Step 6: Feed paper and cut if requested
 	buf.WriteByte(LF)
@@ -525,7 +470,6 @@ func generateGraphicsMode(img image.Image, config *Config) ([]byte, error) {
 	buf.WriteByte(LF)
 
 	if config.CutPaper {
-		// Partial cut command (GS V 1)
 		buf.WriteByte(GS)
 		buf.WriteByte('V')
 		buf.WriteByte(1)
