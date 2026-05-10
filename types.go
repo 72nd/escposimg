@@ -189,6 +189,7 @@ const (
 // Common paper widths in millimeters
 const (
 	PaperWidth58mm = 58
+	PaperWidth72mm = 72
 	PaperWidth80mm = 80
 )
 
