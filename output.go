@@ -74,3 +74,29 @@ func (f *FileOutput) Write(data []byte) error {
 func (f *FileOutput) Close() error {
 	return f.file.Close()
 }
+
+// USBOutput writes data directly to a USB printer device (e.g. /dev/usb/lp0 on Linux).
+type USBOutput struct {
+	file *os.File
+}
+
+// NewUSBOutput opens a USB printer device for writing.
+// devicePath is the path to the device file, e.g. "/dev/usb/lp0".
+func NewUSBOutput(devicePath string) (*USBOutput, error) {
+	file, err := os.OpenFile(devicePath, os.O_WRONLY, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open USB device %s: %w", devicePath, err)
+	}
+	return &USBOutput{file: file}, nil
+}
+
+// Write writes data to the USB device
+func (u *USBOutput) Write(data []byte) error {
+	_, err := u.file.Write(data)
+	return err
+}
+
+// Close closes the USB device
+func (u *USBOutput) Close() error {
+	return u.file.Close()
+}

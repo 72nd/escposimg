@@ -22,9 +22,10 @@ func main() {
 		debugImagePath = flag.String("debug-image", "debug_output.png", "Path to save debug image")
 		debugText      = flag.String("debug-text", "", "Optional debug text to print before image")
 		cutPaper       = flag.Bool("cut", false, "Send paper cut command after printing")
-		outputMethod   = flag.String("output", "stdout", "Output method (stdout, network, file)")
+		outputMethod   = flag.String("output", "stdout", "Output method (stdout, network, file, usb)")
 		networkAddr    = flag.String("network-addr", "", "Network address for network output (e.g., 192.168.1.100:9100)")
 		filePath       = flag.String("file-path", "", "File path for file output")
+		usbDevice      = flag.String("usb-device", "/dev/usb/lp0", "USB device path for usb output")
 		verbose        = flag.Bool("verbose", false, "Enable verbose logging")
 		version        = flag.Bool("version", false, "Show version information")
 	)
@@ -37,6 +38,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "\nExamples:\n")
 		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -output network -network-addr 192.168.1.100:9100\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -output usb -usb-device /dev/usb/lp0\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -dithering threshold -debug-output\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -print-mode column\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s -image photo.jpg -print-mode graphics -dithering atkinson\n", os.Args[0])
@@ -93,7 +95,7 @@ func main() {
 	}
 
 	// Create output method
-	output, err := createOutputMethod(*outputMethod, *networkAddr, *filePath)
+	output, err := createOutputMethod(*outputMethod, *networkAddr, *filePath, *usbDevice)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating output method: %v\n", err)
 		os.Exit(1)
@@ -149,7 +151,7 @@ func parsePrintMode(mode string) (escposimg.PrintMode, error) {
 }
 
 // createOutputMethod creates the appropriate output method based on the flag
-func createOutputMethod(method, networkAddr, filePath string) (escposimg.OutputMethod, error) {
+func createOutputMethod(method, networkAddr, filePath, usbDevice string) (escposimg.OutputMethod, error) {
 	switch strings.ToLower(method) {
 	case "stdout":
 		return escposimg.NewStdoutOutput(), nil
@@ -163,6 +165,8 @@ func createOutputMethod(method, networkAddr, filePath string) (escposimg.OutputM
 			return nil, fmt.Errorf("file path is required for file output")
 		}
 		return escposimg.NewFileOutput(filePath)
+	case "usb":
+		return escposimg.NewUSBOutput(usbDevice)
 	default:
 		return nil, fmt.Errorf("unknown output method: %s", method)
 	}
