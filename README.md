@@ -59,6 +59,13 @@ lp -d thermal_printer -o raw printer_data.escpos
 ```
 These commands first generate an ESC/POS file containing the printer commands, then demonstrate two methods for sending the file to a USB-connected thermal printer.
 
+**USB Output (direct device write, Linux/Unix only):**
+```bash
+# Print directly to a locally attached USB printer
+escposimg -image logo.png -output usb -usb-device /dev/usb/lp0
+```
+This command opens the USB printer device in blocking mode and writes the ESC/POS data directly to it, equivalent to `cat file > /dev/usb/lp0`. The device path is typically `/dev/usb/lp0`, `/dev/usb/lp1`, etc. Your user account needs write permission on the device (e.g. add yourself to the `lp` group on most Linux distributions). USB output is only available on Unix-like platforms; on other platforms the command returns an unsupported error.
+
 **Network Output (direct TCP connection):**
 ```bash
 # Print directly to network printer
@@ -150,6 +157,35 @@ func main() {
 ```
 This advanced example shows how to configure the library for a specific printer type (58mm), enable debug features, and process multiple images sequentially over a network connection.
 
+#### USB Printer Output
+
+```go
+package main
+
+import (
+    "log"
+    "github.com/72nd/escposimg"
+)
+
+func main() {
+    config := escposimg.DefaultConfig()
+    config.CutPaper = true
+
+    // NewUSBOutput opens the device in blocking mode so that Close() does not
+    // abort an in-flight USB transfer. Only available on Unix-like platforms.
+    output, err := escposimg.NewUSBOutput("/dev/usb/lp0")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer output.Close()
+
+    if err := escposimg.ProcessImage("receipt.jpg", config, output); err != nil {
+        log.Fatal(err)
+    }
+}
+```
+This example prints directly to a USB-connected thermal printer. The device is opened in blocking mode, so `Close` only returns once all data has been transmitted. On non-Unix platforms `NewUSBOutput` returns an error; use `NewNetworkOutput` or `NewFileOutput` there instead.
+
 #### Production Integration Example
 
 ```go
@@ -204,9 +240,10 @@ This production-ready function demonstrates error handling, configuration manage
 | `-debug-image` | string | `debug_output.png` | Path for debug image output |
 | `-debug-text` | string | `` | Optional text printed before image |
 | `-cut` | bool | `false` | Send paper cut command after printing |
-| `-output` | string | `stdout` | Output method (`stdout`, `network`, `file`) |
+| `-output` | string | `stdout` | Output method (`stdout`, `network`, `file`, `usb`) |
 | `-network-addr` | string | `` | Network address for network output |
 | `-file-path` | string | `` | File path for file output |
+| `-usb-device` | string | `/dev/usb/lp0` | Device path for USB output (Linux/Unix only) |
 | `-verbose` | bool | `false` | Enable detailed logging |
 | `-version` | bool | `false` | Display version information |
 

@@ -91,11 +91,37 @@ func main() {
 		networkOutput.Close()
 	}
 
+	// Method 4: USB output (Linux / Unix only)
+	fmt.Println("\n4. USB Output:")
+	fmt.Println("   Send directly to a USB printer device (Linux/Unix only)")
+	fmt.Println("   The device path is usually /dev/usb/lp0, /dev/usb/lp1, etc.")
+
+	usbDevice := "/dev/usb/lp0"
+	fmt.Printf("   Attempting to open %s...\n", usbDevice)
+
+	usbOutput, err := escposimg.NewUSBOutput(usbDevice)
+	if err != nil {
+		fmt.Printf("   ⚠ USB device open failed (expected if no printer is connected): %v\n", err)
+		fmt.Println("   To use USB printing:")
+		fmt.Println("   1. Connect a USB printer and locate its device path (ls /dev/usb/)")
+		fmt.Println("   2. Ensure you have write permission (e.g. add your user to the 'lp' group)")
+		fmt.Println("   3. Update the device path in this example")
+	} else {
+		fmt.Println("   Processing image to USB printer...")
+		if err := escposimg.ProcessImage(imagePath, config, usbOutput); err != nil {
+			log.Printf("Error with USB output: %v", err)
+		} else {
+			fmt.Println("   ✓ ESC/POS commands sent to USB printer")
+		}
+		usbOutput.Close()
+	}
+
 	fmt.Println("\nOutput Methods Summary:")
 	fmt.Println("======================")
-	fmt.Println("• Stdout: Best for piping and shell integration")
-	fmt.Println("• File: Best for batch processing and debugging")
+	fmt.Println("• Stdout:  Best for piping and shell integration")
+	fmt.Println("• File:    Best for batch processing and debugging")
 	fmt.Println("• Network: Best for direct printing to network printers")
+	fmt.Println("• USB:     Best for locally attached USB printers (Linux/Unix)")
 	fmt.Println("\nTip: You can test any output by redirecting to a file and examining with a hex editor:")
 	fmt.Println("go run output_methods.go 2>/dev/null | hexdump -C")
 }
